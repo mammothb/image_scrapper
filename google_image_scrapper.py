@@ -16,6 +16,7 @@ import requests
 
 from PIL import Image, UnidentifiedImageError
 from selenium import webdriver
+from selenium.common.exceptions import ElementNotInteractableException
 from selenium.webdriver.firefox.options import Options
 
 
@@ -50,7 +51,7 @@ def download_image(hrefs, index, output_dir, search_phrase):
             ) as outfile:
                 img_data = requests.get(img_url, timeout=30).content
                 outfile.write(img_data)
-        except requests.exceptions.RequestException:
+        except (requests.exceptions.RequestException, UnicodeError):
             print(img_url)
 
 
@@ -68,6 +69,9 @@ def google_search(args):
 
     search_phrase = args.phrase
     url = f"https://www.google.com.sg/search?q={search_phrase.replace(' ', '%20')}&tbm=isch"
+    if args.rimg:
+        url += f"&tbs=rimg:{args.rimg}"
+        print(url)
 
     options = Options()
     options.headless = True
@@ -105,7 +109,10 @@ def google_search(args):
     for i, element in enumerate(thumbnail_elements):
         if i % 50 == 0:
             print(f"Expanding ... {i}")
-        element.click()
+        try:
+            element.click()
+        except ElementNotInteractableException:
+            pass
 
     webpage = driver.page_source
     soup2 = bs4.BeautifulSoup(webpage, "html.parser")
@@ -139,6 +146,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--phrase", help="The phrase to search for", required=True)
     parser.add_argument("--j", help="The phrase to search for", type=int, default=1)
+    parser.add_argument("--rimg", help="Related image code", default="")
     args = parser.parse_args()
     start_time = time.time()
     num_images = google_search(args)
